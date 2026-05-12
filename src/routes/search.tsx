@@ -63,6 +63,7 @@ function SearchPage() {
   const [specialty, setSpecialty] = useState<string>(sp.specialty ?? "all");
   const [city, setCity] = useState<string>(sp.city ?? "all");
   const [type, setType] = useState<string>("all");
+  const [date, setDate] = useState<string>("");
 
   const [doctors, setDoctors] = useState<DbDoctor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,6 +115,26 @@ function SearchPage() {
         });
       }
 
+      // Filter by available date if provided
+      if (date) {
+        const selectedDate = new Date(date);
+        const dayOfWeek = selectedDate.getDay();
+        
+        // We fetch availability_slots for this day
+        const { data: slots } = await supabase
+          .from("availability_slots")
+          .select("doctor_id")
+          .eq("day_of_week", dayOfWeek)
+          .eq("is_booked", false);
+          
+        if (slots) {
+          const availableDoctorIds = new Set(slots.map(s => s.doctor_id));
+          results = results.filter(d => availableDoctorIds.has(d.id));
+        } else {
+          results = [];
+        }
+      }
+
       setDoctors(results);
     } catch (err) {
       console.error("[search] fetch error:", err);
@@ -128,7 +149,7 @@ function SearchPage() {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(fetchDoctors, 300);
     return () => clearTimeout(debounceRef.current);
-  }, [q, specialty, city, type]);
+  }, [q, specialty, city, type, date]);
 
   // ── AI symptom match (Edge Function) ─────────────────────────────────────
   const runAiMatch = async () => {
@@ -227,6 +248,17 @@ function SearchPage() {
                   <SelectItem value="Physical">In-person</SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* Date Filter */}
+              <div className="relative">
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="flex h-11 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors md:w-40"
+                  placeholder="Date"
+                />
+              </div>
             </div>
 
             {/* AI suggestion chip */}

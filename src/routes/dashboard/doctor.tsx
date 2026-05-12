@@ -21,6 +21,7 @@ import { AvatarUploader } from "@/components/AvatarUploader";
 import { AvailabilityToggle } from "@/components/AvailabilityToggle";
 import { AvailabilityManager } from "@/components/AvailabilityManager";
 import { SkeletonCard, SkeletonLine } from "@/components/SkeletonCard";
+import { DoctorInbox } from "@/components/DoctorInbox";
 import { useAuth } from "@/hooks/use-auth";
 import { useDoctor } from "@/hooks/use-doctor";
 import { useAppointments } from "@/hooks/use-appointments";
@@ -107,9 +108,14 @@ function DoctorDashboard() {
 
   const handleToggle = async () => {
     setToggling(true);
-    await toggleAvailability();
-    setToggling(false);
-    toast.success(doctor?.is_available ? "You're now offline" : "You're now available!");
+    try {
+      await toggleAvailability();
+      toast.success(doctor?.is_available ? "You're now offline" : "You're now available!");
+    } catch (e) {
+      toast.error("Failed to update status");
+    } finally {
+      setToggling(false);
+    }
   };
 
   const saveProfile = async (e: React.FormEvent) => {
@@ -204,6 +210,7 @@ function DoctorDashboard() {
                 </Badge>
               )}
             </TabsTrigger>
+            <TabsTrigger value="messages">Messages</TabsTrigger>
             <TabsTrigger value="leads">
               Leads
               {leads.filter((l) => l.status === "new").length > 0 && (
@@ -396,6 +403,17 @@ function DoctorDashboard() {
                   </Card>
                 ))}
               </div>
+            )}
+          </TabsContent>
+
+          {/* Messages Tab */}
+          <TabsContent value="messages" className="mt-6 outline-none">
+            {doctor?.id ? (
+              <DoctorInbox doctorId={doctor.id} />
+            ) : (
+              <Card className="p-8 text-center border-dashed">
+                <p className="text-muted-foreground">Save your profile first to view messages.</p>
+              </Card>
             )}
           </TabsContent>
         </Tabs>

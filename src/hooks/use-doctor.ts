@@ -50,10 +50,16 @@ export function useDoctor(userId: string | null) {
     if (!doctor) return;
     const newVal = !doctor.is_available;
     setDoctor((prev) => prev ? { ...prev, is_available: newVal } : prev);
-    await supabase
+    const { error } = await supabase
       .from("doctors")
       .update({ is_available: newVal })
       .eq("id", doctor.id);
+    
+    if (error) {
+      console.error("Failed to toggle availability:", error);
+      // Revert on error
+      setDoctor((prev) => prev ? { ...prev, is_available: !newVal } : prev);
+    }
   };
 
   return { doctor, loading, error, updateDoctor, toggleAvailability, refetch: fetchDoctor };

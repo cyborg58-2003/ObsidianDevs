@@ -27,7 +27,7 @@ export function useAppointments(userId: string | null, role: "doctor" | "patient
     setLoading(true);
     try {
       if (role === "patient") {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("appointments")
           .select(`
             *,
@@ -38,6 +38,8 @@ export function useAppointments(userId: string | null, role: "doctor" | "patient
           `)
           .eq("patient_id", userId)
           .order("appointment_at", { ascending: true });
+
+        if (error) console.error("Patient appointments error:", error);
 
         const mapped: Appointment[] = (data ?? []).map((a: Record<string, unknown>) => ({
           id: a.id as string,
@@ -55,15 +57,16 @@ export function useAppointments(userId: string | null, role: "doctor" | "patient
         setAppointments(mapped);
       } else {
         // Doctor: get their doctor id first
-        const { data: doctorData } = await supabase
+        const { data: doctorData, error: doctorErr } = await supabase
           .from("doctors")
           .select("id")
           .eq("user_id", userId)
           .single();
 
+        if (doctorErr) console.error("Doctor lookup error:", doctorErr);
         if (!doctorData) return;
 
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from("appointments")
           .select(`
             *,
@@ -71,6 +74,8 @@ export function useAppointments(userId: string | null, role: "doctor" | "patient
           `)
           .eq("doctor_id", doctorData.id)
           .order("appointment_at", { ascending: true });
+
+        if (error) console.error("Doctor appointments error:", error);
 
         const mapped: Appointment[] = (data ?? []).map((a: Record<string, unknown>) => ({
           id: a.id as string,

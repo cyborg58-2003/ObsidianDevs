@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { getDoctor } from "@/data/doctors";
 
 // Native date helpers (no date-fns required)
 function startOfToday() {
@@ -73,12 +74,43 @@ export function BookingModal({
     setSelectedSlot(null);
     const dayOfWeek = date.getDay();
 
-    const { data } = await supabase
+    if (doctorId && !doctorId.includes("-")) {
+      const doc = getDoctor(doctorId);
+      if (doc && doc.available) {
+        const dayStr = DAY_NAMES[dayOfWeek];
+        const daySlots = doc.available.filter((a: string) => a.startsWith(dayStr) || a.startsWith("Daily") || a.startsWith("Mon–Sat"));
+        
+        const mockSlots = daySlots.map((ds: string, i: number) => {
+          let time = ds.split(" ")[1];
+          if (time && time.includes("–")) time = time.split("–")[0];
+          
+          return {
+            id: `mock-${i}`,
+            doctor_id: doctorId,
+            day_of_week: dayOfWeek,
+            start_time: time || "09:00",
+            end_time: "10:00",
+            is_booked: false
+          };
+        });
+        setSlots(mockSlots as Slot[]);
+        setSlotsLoading(false);
+        return;
+      }
+    }
+
+    const { data, error } = await supabase
       .from("availability_slots")
       .select("*")
       .eq("doctor_id", doctorId)
       .eq("day_of_week", dayOfWeek)
       .order("start_time");
+
+    if (error) {
+      console.error("[BookingModal] fetchSlots error:", error);
+    } else {
+      console.log("[BookingModal] fetched slots:", data);
+    }
 
     setSlots((data ?? []) as Slot[]);
     setSlotsLoading(false);
@@ -93,25 +125,39 @@ export function BookingModal({
     const apptAt = new Date(selectedDate);
     apptAt.setHours(hour, minute, 0, 0);
 
-    const { error } = await supabase.from("appointments").insert({
-      doctor_id: doctorId,
-      patient_id: patientId,
-      slot_id: selectedSlot.id,
-      status: "pending",
-      notes: notes || null,
-      appointment_at: apptAt.toISOString(),
-    });
-
-    if (error) {
-      setBooking(false);
-      return toast.error("Booking failed: " + error.message);
+    let apptError = null;
+    let errorMsg = "";
+    
+    // For mock doctors, we just simulate success
+    if (doctorId && !doctorId.includes("-")) {
+      await new Promise(res => setTimeout(res, 500));
+    } else {
+      const { error } = await supabase.from("appointments").insert({
+        doctor_id: doctorId,
+        patient_id: patientId,
+        slot_id: selectedSlot.id,
+        status: "pending",
+        notes: notes || null,
+        appointment_at: apptAt.toISOString(),
+      });
+      if (error) {
+        apptError = error;
+        errorMsg = error.message;
+      }
     }
 
-    // Mark slot as booked
-    await supabase
-      .from("availability_slots")
-      .update({ is_booked: true })
-      .eq("id", selectedSlot.id);
+    if (apptError) {
+      setBooking(false);
+      return toast.error("Booking failed: " + errorMsg);
+    }
+
+    // Mark slot as booked (if real)
+    if (!selectedSlot.id.startsWith("mock-")) {
+      await supabase
+        .from("availability_slots")
+        .update({ is_booked: true })
+        .eq("id", selectedSlot.id);
+    }
 
     // Try to send confirmation email via Edge Function
     try {
@@ -120,6 +166,22 @@ export function BookingModal({
       });
     } catch {
       // Non-fatal: email may not be configured yet
+    }
+
+    // Insert Notification for Patient
+    await supabase.from("notifications" as any).insert({
+      user_id: patientId,
+      title: "Appointment Booked",
+      message: `Your appointment with ${doctorName} has been confirmed for ${apptAt.toLocaleString()}.`
+    });
+
+    // Insert Notification for Doctor (if real doctor)
+    if (doctorId && doctorId.includes("-")) {
+        await supabase.from("notifications" as any).insert({
+          user_id: doctorId,
+          title: "New Appointment",
+          message: `You have a new appointment on ${apptAt.toLocaleString()}.`
+        });
     }
 
     setBooking(false);

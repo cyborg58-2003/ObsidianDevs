@@ -12,6 +12,32 @@ import { supabase } from "@/integrations/supabase/client";
 import { SPECIALTIES, CITIES } from "@/data/doctors";
 import { cn } from "@/lib/utils";
 
+function calculateStrength(password: string) {
+  let score = 0;
+  if (!password) return score;
+  if (password.length >= 8) score += 1;
+  if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score += 1;
+  if (/[0-9]/.test(password)) score += 1;
+  if (/[^A-Za-z0-9]/.test(password)) score += 1;
+  return Math.min(score, 4);
+}
+
+function getStrengthColor(score: number) {
+  if (score === 1) return "bg-red-500";
+  if (score === 2) return "bg-yellow-500";
+  if (score === 3) return "bg-blue-500";
+  if (score >= 4) return "bg-green-500";
+  return "bg-transparent";
+}
+
+function getStrengthLabel(score: number) {
+  if (score === 1) return "Weak";
+  if (score === 2) return "Fair";
+  if (score === 3) return "Good";
+  if (score >= 4) return "Strong";
+  return "";
+}
+
 export const Route = createFileRoute("/register")({
   head: () => ({
     meta: [
@@ -31,6 +57,8 @@ function RegisterPage() {
     experience: "5", fee: "2000",
   });
   const [loading, setLoading] = useState(false);
+
+  const passwordStrength = calculateStrength(form.password);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,6 +156,30 @@ function RegisterPage() {
               <div className="space-y-2">
                 <Label htmlFor="reg-pass">Password</Label>
                 <Input id="reg-pass" type="password" required value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                {form.password.length > 0 && (
+                  <div className="mt-1.5 flex flex-col gap-1">
+                    <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+                      {[1, 2, 3, 4].map((index) => (
+                        <div
+                          key={index}
+                          className={cn(
+                            "h-full flex-1 border-r border-background last:border-r-0 transition-colors duration-300",
+                            passwordStrength >= index ? getStrengthColor(passwordStrength) : "bg-transparent"
+                          )}
+                        />
+                      ))}
+                    </div>
+                    <span className={cn(
+                      "text-[10px] uppercase tracking-wider font-semibold text-right",
+                      passwordStrength === 1 ? "text-red-500" :
+                      passwordStrength === 2 ? "text-yellow-500" :
+                      passwordStrength === 3 ? "text-blue-500" :
+                      passwordStrength >= 4 ? "text-green-500" : "text-muted-foreground"
+                    )}>
+                      {getStrengthLabel(passwordStrength)}
+                    </span>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="reg-confirm">Confirm</Label>

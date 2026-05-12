@@ -2,11 +2,20 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Stethoscope, LogOut, CalendarCheck, Search,
-  LayoutDashboard, User2,
+  LayoutDashboard, User2, Bell, Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function SiteHeader() {
   const { user, profile, displayName } = useAuth();
@@ -63,6 +72,7 @@ export function SiteHeader() {
                   <LayoutDashboard className="h-4 w-4" />
                 </Link>
               </Button>
+              <NotificationBell />
               <Button variant="ghost" size="sm" onClick={logout}>
                 <LogOut className="h-4 w-4" />
                 <span className="hidden sm:inline">Sign out</span>
@@ -133,5 +143,101 @@ function MobileLink({
       {icon}
       {label}
     </Link>
+  );
+}
+
+function NotificationBell() {
+  const { user } = useAuth();
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchNotifications = async () => {
+      const { data } = await supabase
+        .from("notifications" as any)
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10);
+        
+      if (data) {
+        setNotifications(data);
+        setUnreadCount(data.filter((n: any) => !n.is_read).length);
+      }
+    };
+
+    fetchNotifications();
+
+    // Subscribe to new notifications
+    const channel = supabase
+      .channel("schema-db-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          setNotifications((prev) => [payload.new, ...prev]);
+          setUnreadCount((prev) => prev + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  const markAllAsRead = async () => {
+    if (!user || unreadCount === 0) return;
+    
+    await supabase
+      .from("notifications" as any)
+      .update({ is_read: true })
+      .eq("user_id", user.id)
+      .eq("is_read", false);
+      
+    setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+  };
+
+  return (
+    <DropdownMenu onOpenChange={(open) => { if(open) markAllAsRead(); }}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="relative">
+          <Bell className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+              {unreadCount}
+            </span>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        {notifications.length === 0 ? (
+          <div className="p-4 text-center text-sm text-muted-foreground">
+            No notifications yet.
+          </div>
+        ) : (
+          <div className="max-h-80 overflow-y-auto">
+            {notifications.map((n) => (
+              <DropdownMenuItem key={n.id} className="flex flex-col items-start p-3">
+                <div className="flex w-full items-center justify-between">
+                  <span className="font-semibold text-sm">{n.title}</span>
+                  {!n.is_read && <span className="h-2 w-2 rounded-full bg-primary" />}
+                </div>
+                <span className="text-xs text-muted-foreground mt-1 line-clamp-2">{n.message}</span>
+              </DropdownMenuItem>
+            ))}
+          </div>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
