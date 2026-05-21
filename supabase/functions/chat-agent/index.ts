@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { GoogleGenerativeAI } from "npm:@google/genai@0.1.2";
+import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,7 +21,8 @@ serve(async (req) => {
         throw new Error("GEMINI_API_KEY is not configured.");
     }
     
-    const ai = new GoogleGenerativeAI({ apiKey });
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const systemPrompt = `You are a polite, professional, and empathetic AI receptionist for a medical clinic (Doctor ID: ${doctorId}). 
 Your job is to assist patients when the doctor is unavailable. 
@@ -31,17 +32,15 @@ Your job is to assist patients when the doctor is unavailable.
 4. Encourage them to book an appointment using the calendar interface.
 Keep your responses very concise (1-3 sentences maximum) and conversational. Do not use markdown formatting.`;
 
-    // Generate response using Gemini 1.5 Flash for speed
-    const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
-        contents: [
-            { role: 'user', parts: [{ text: systemPrompt }] },
-            { role: 'model', parts: [{ text: "Understood. I will act as the medical receptionist." }] },
-            { role: 'user', parts: [{ text: message }] }
+    const chat = model.startChat({
+        history: [
+            { role: "user", parts: [{ text: systemPrompt }] },
+            { role: "model", parts: [{ text: "Understood. I will act as the medical receptionist." }] }
         ]
     });
 
-    const reply = response.text;
+    const result = await chat.sendMessage(message);
+    const reply = result.response.text();
 
     return new Response(
       JSON.stringify({ reply }),
