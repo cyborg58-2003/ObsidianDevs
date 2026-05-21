@@ -107,6 +107,11 @@ export function useAppointments(userId: string | null, role: "doctor" | "patient
     );
   };
 
-  return { appointments, loading, updateStatus, refetch: fetchAppointments };
+  const deleteAppointment = async (id: string) => {
+    await supabase.from("appointments").delete().eq("id", id);
+    setAppointments((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  return { appointments, loading, updateStatus, deleteAppointment, refetch: fetchAppointments };
 }
 

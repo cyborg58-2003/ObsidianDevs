@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   CalendarCheck, Star, Users, TrendingUp, Loader2,
   Save, Phone, MapPin, Briefcase, Clock, DollarSign,
-  MessageSquare, CheckCircle, XCircle, ChevronDown
+  MessageSquare, CheckCircle, XCircle, ChevronDown, Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,7 +55,7 @@ interface Lead {
 function DoctorDashboard() {
   const { user, displayName, profile, doctorId } = useAuth();
   const { doctor, loading: doctorLoading, updateDoctor, toggleAvailability } = useDoctor(user?.id ?? null);
-  const { appointments, loading: apptLoading, updateStatus } = useAppointments(user?.id ?? null, "doctor");
+  const { appointments, loading: apptLoading, updateStatus, deleteAppointment } = useAppointments(user?.id ?? null, "doctor");
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -407,6 +407,20 @@ function DoctorDashboard() {
                             Cancel
                           </Button>
                         </div>
+                      )}
+
+                      {a.status === "cancelled" && (
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          onClick={async () => {
+                            await deleteAppointment(a.id);
+                            toast.success("Appointment deleted.");
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" /> Delete
+                        </Button>
                       )}
                     </div>
                   </Card>

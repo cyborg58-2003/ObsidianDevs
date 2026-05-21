@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { toast } from "sonner";
 import { Calendar, Search, MapPin, Stethoscope, Clock, ArrowRight, Video, User2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/dashboard/patient")({
 
 function PatientDashboard() {
   const { user, displayName } = useAuth();
-  const { appointments, loading, updateStatus } = useAppointments(user?.id ?? null, "patient");
+  const { appointments, loading, updateStatus, deleteAppointment } = useAppointments(user?.id ?? null, "patient");
 
   const upcoming = appointments.filter(
     (a) => a.status === "pending" || a.status === "confirmed"
@@ -124,7 +125,15 @@ function PatientDashboard() {
                 </div>
                 <div className="mt-4 space-y-3">
                   {past.map((a) => (
-                    <AppointmentRow key={a.id} appointment={a} past />
+                    <AppointmentRow 
+                      key={a.id} 
+                      appointment={a} 
+                      past 
+                      onDelete={async () => {
+                        await deleteAppointment(a.id);
+                        toast.success("Appointment deleted from history.");
+                      }}
+                    />
                   ))}
                 </div>
               </div>
@@ -178,9 +187,10 @@ interface AppointmentRowProps {
   appointment: ReturnType<typeof useAppointments>["appointments"][0];
   past?: boolean;
   onCancel?: () => void;
+  onDelete?: () => void;
 }
 
-function AppointmentRow({ appointment: a, past, onCancel }: AppointmentRowProps) {
+function AppointmentRow({ appointment: a, past, onCancel, onDelete }: AppointmentRowProps) {
   const statusMap: Record<string, string> = {
     pending: "bg-warning/15 text-warning hover:bg-warning/15",
     confirmed: "bg-success/15 text-success hover:bg-success/15",
@@ -209,6 +219,11 @@ function AppointmentRow({ appointment: a, past, onCancel }: AppointmentRowProps)
         {!past && onCancel && a.status === "pending" && (
           <Button size="sm" variant="ghost" onClick={onCancel} className="text-destructive hover:text-destructive">
             Cancel
+          </Button>
+        )}
+        {a.status === "cancelled" && onDelete && (
+          <Button size="sm" variant="ghost" onClick={onDelete} className="text-destructive hover:bg-destructive/10 hover:text-destructive">
+            Delete
           </Button>
         )}
       </div>
