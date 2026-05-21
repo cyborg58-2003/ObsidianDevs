@@ -55,7 +55,7 @@ interface Lead {
 function DoctorDashboard() {
   const { user, displayName, profile, doctorId } = useAuth();
   const { doctor, loading: doctorLoading, updateDoctor, toggleAvailability } = useDoctor(user?.id ?? null);
-  const { appointments, loading: apptLoading } = useAppointments(user?.id ?? null, "doctor");
+  const { appointments, loading: apptLoading, updateStatus } = useAppointments(user?.id ?? null, "doctor");
   const [saving, setSaving] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -339,7 +339,61 @@ function DoctorDashboard() {
                       </div>
                       {a.notes && <div className="mt-1 text-xs text-muted-foreground italic">"{a.notes}"</div>}
                     </div>
-                    <StatusBadge status={a.status} />
+                    <div className="flex items-center gap-3">
+                      <StatusBadge status={a.status} />
+                      
+                      {a.status === "pending" && (
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            className="bg-success hover:bg-success/90 text-white"
+                            onClick={() => {
+                              updateStatus(a.id, "confirmed");
+                              toast.success("Appointment accepted!");
+                            }}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" /> Accept
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => {
+                              updateStatus(a.id, "cancelled");
+                              toast.success("Appointment declined.");
+                            }}
+                          >
+                            <XCircle className="h-4 w-4 mr-1" /> Decline
+                          </Button>
+                        </div>
+                      )}
+
+                      {a.status === "confirmed" && (
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => {
+                              updateStatus(a.id, "done");
+                              toast.success("Appointment marked as completed.");
+                            }}
+                          >
+                            <CheckCircle className="h-4 w-4 mr-1" /> Complete
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                            onClick={() => {
+                              updateStatus(a.id, "cancelled");
+                              toast.success("Appointment cancelled.");
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </Card>
                 ))}
               </div>
