@@ -158,6 +158,7 @@ function NotificationBell() {
       const { data } = await supabase
         .from("notifications" as any)
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(10);
         
@@ -208,31 +209,56 @@ function NotificationBell() {
   return (
     <DropdownMenu onOpenChange={(open) => { if(open) markAllAsRead(); }}>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
+        <Button variant="ghost" size="icon" className="group relative hover:bg-primary/10 transition-colors">
+          <Bell className={cn("h-5 w-5 text-muted-foreground transition-all group-hover:text-primary", unreadCount > 0 && "animate-pulse text-primary")} />
           {unreadCount > 0 && (
-            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground">
+            <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground shadow-sm ring-2 ring-background">
               {unreadCount}
             </span>
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-        <DropdownMenuSeparator />
+      <DropdownMenuContent align="end" className="w-80 border-border/60 bg-background/95 backdrop-blur-xl shadow-elegant p-0 overflow-hidden rounded-xl">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-muted/30">
+          <span className="font-display font-semibold text-sm">Notifications</span>
+          {unreadCount > 0 && (
+            <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+              {unreadCount} new
+            </span>
+          )}
+        </div>
         {notifications.length === 0 ? (
-          <div className="p-4 text-center text-sm text-muted-foreground">
-            No notifications yet.
+          <div className="p-8 flex flex-col items-center justify-center text-center">
+            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+              <Bell className="h-6 w-6 text-primary/40" />
+            </div>
+            <p className="text-sm font-medium">You're all caught up!</p>
+            <p className="text-xs text-muted-foreground mt-1">No new notifications right now.</p>
           </div>
         ) : (
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-[350px] overflow-y-auto overflow-x-hidden p-1 scrollbar-thin">
             {notifications.map((n) => (
-              <DropdownMenuItem key={n.id} className="flex flex-col items-start p-3">
-                <div className="flex w-full items-center justify-between">
-                  <span className="font-semibold text-sm">{n.title}</span>
-                  {!n.is_read && <span className="h-2 w-2 rounded-full bg-primary" />}
+              <DropdownMenuItem key={n.id} className="flex gap-3 items-start p-3 rounded-lg my-1 transition-colors hover:bg-muted/50 cursor-default focus:bg-muted/50">
+                <div className={cn(
+                  "grid h-8 w-8 shrink-0 place-items-center rounded-full mt-0.5",
+                  !n.is_read ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                )}>
+                  <Bell className="h-4 w-4" />
                 </div>
-                <span className="text-xs text-muted-foreground mt-1 line-clamp-2">{n.message}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <span className={cn("font-semibold text-sm truncate", !n.is_read ? "text-foreground" : "text-foreground/80")}>
+                      {n.title}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">
+                      {new Date(n.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                  <span className={cn("text-xs mt-1 line-clamp-2", !n.is_read ? "text-muted-foreground" : "text-muted-foreground/70")}>
+                    {n.message}
+                  </span>
+                </div>
+                {!n.is_read && <span className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1.5" />}
               </DropdownMenuItem>
             ))}
           </div>
