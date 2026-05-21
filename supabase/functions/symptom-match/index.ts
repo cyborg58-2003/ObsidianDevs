@@ -25,7 +25,7 @@ serve(async (req) => {
     }
     
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const systemPrompt = `You are "Smart Doctor AI", a helpful healthcare directory assistant for Pakistan.
 Your job is to understand the user's symptoms and recommend the correct medical specialty (e.g., Cardiologist, Dermatologist, General Physician).

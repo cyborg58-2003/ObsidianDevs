@@ -22,7 +22,7 @@ serve(async (req) => {
     }
     
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const systemPrompt = `You are a polite, professional, and empathetic AI receptionist for a medical clinic (Doctor ID: ${doctorId}). 
 Your job is to assist patients when the doctor is unavailable. 
