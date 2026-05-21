@@ -177,11 +177,14 @@ export function BookingModal({
 
     // Insert Notification for Doctor (if real doctor)
     if (doctorId && doctorId.includes("-")) {
-        await supabase.from("notifications" as any).insert({
-          user_id: doctorId,
-          title: "New Appointment",
-          message: `You have a new appointment on ${apptAt.toLocaleString()}.`
-        });
+        const { data: docData } = await supabase.from("doctors").select("user_id").eq("id", doctorId).single();
+        if (docData?.user_id) {
+          await supabase.from("notifications" as any).insert({
+            user_id: docData.user_id,
+            title: "New Appointment",
+            message: `You have a new appointment on ${apptAt.toLocaleString()}.`
+          });
+        }
     }
 
     setBooking(false);

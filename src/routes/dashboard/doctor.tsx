@@ -347,9 +347,14 @@ function DoctorDashboard() {
                           <Button 
                             size="sm" 
                             className="bg-success hover:bg-success/90 text-white"
-                            onClick={() => {
+                            onClick={async () => {
                               updateStatus(a.id, "confirmed");
                               toast.success("Appointment accepted!");
+                              await supabase.from("notifications" as any).insert({
+                                user_id: a.patient_id,
+                                title: "Appointment Accepted",
+                                message: `Your appointment with Dr. ${profile?.name || "your doctor"} on ${new Date(a.appointment_at).toLocaleDateString()} has been confirmed.`
+                              });
                             }}
                           >
                             <CheckCircle className="h-4 w-4 mr-1" /> Accept
@@ -358,9 +363,14 @@ function DoctorDashboard() {
                             size="sm" 
                             variant="outline" 
                             className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => {
+                            onClick={async () => {
                               updateStatus(a.id, "cancelled");
                               toast.success("Appointment declined.");
+                              await supabase.from("notifications" as any).insert({
+                                user_id: a.patient_id,
+                                title: "Appointment Declined",
+                                message: `Unfortunately, your appointment with Dr. ${profile?.name || "your doctor"} on ${new Date(a.appointment_at).toLocaleDateString()} could not be confirmed.`
+                              });
                             }}
                           >
                             <XCircle className="h-4 w-4 mr-1" /> Decline
@@ -384,9 +394,14 @@ function DoctorDashboard() {
                             size="sm" 
                             variant="ghost" 
                             className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-                            onClick={() => {
+                            onClick={async () => {
                               updateStatus(a.id, "cancelled");
                               toast.success("Appointment cancelled.");
+                              await supabase.from("notifications" as any).insert({
+                                user_id: a.patient_id,
+                                title: "Appointment Cancelled",
+                                message: `Your appointment with Dr. ${profile?.name || "your doctor"} has been cancelled.`
+                              });
                             }}
                           >
                             Cancel
