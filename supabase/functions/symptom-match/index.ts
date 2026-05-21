@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { GoogleGenerativeAI } from "npm:@google/generative-ai";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,39 +7,65 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const { query } = await req.json()
+    const { symptom, query, conversationHistory } = await req.json()
+    const userMessage = symptom || query;
 
-    if (!query) {
-      throw new Error('Query is required')
+    if (!userMessage) {
+      throw new Error('Message (symptom or query) is required')
     }
 
-    // Call Anthropic / OpenAI API or your preferred AI provider here
-    // For the hackathon, we simulate an intelligent response if the AI API key isn't set
-    const lowerQuery = query.toLowerCase();
-    let specialty = "General Physician";
+    const apiKey = Deno.env.get("GEMINI_API_KEY");
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is not configured.");
+    }
     
-    if (lowerQuery.includes("heart") || lowerQuery.includes("chest")) specialty = "Cardiologist";
-    if (lowerQuery.includes("skin") || lowerQuery.includes("rash")) specialty = "Dermatologist";
-    if (lowerQuery.includes("brain") || lowerQuery.includes("headache")) specialty = "Neurologist";
-    if (lowerQuery.includes("child") || lowerQuery.includes("baby")) specialty = "Pediatrician";
-    if (lowerQuery.includes("bone") || lowerQuery.includes("joint")) specialty = "Orthopedist";
-    if (lowerQuery.includes("tooth") || lowerQuery.includes("teeth")) specialty = "Dentist";
-    if (lowerQuery.includes("eye") || lowerQuery.includes("vision")) specialty = "Ophthalmologist";
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-    const result = {
-      specialty: specialty,
-      confidence: 0.95,
-      suggestedKeywords: [specialty.toLowerCase(), "consultation", "treatment"]
-    };
+    const systemPrompt = `You are "Smart Doctor AI", a helpful healthcare directory assistant for Pakistan.
+Your job is to understand the user's symptoms and recommend the correct medical specialty (e.g., Cardiologist, Dermatologist, General Physician).
+Be concise, friendly, and professional. Do NOT provide medical diagnoses.
+At the very end of your response, output a special tag in this exact format: [SPECIALTY: <SpecialtyName>] if you recommend a specific doctor type. If no specific type, omit the tag.`;
+
+    // Convert history format if available
+    let history = [
+      { role: "user", parts: [{ text: systemPrompt }] },
+      { role: "model", parts: [{ text: "Understood. I am Smart Doctor AI." }] }
+    ];
+
+    if (conversationHistory && Array.isArray(conversationHistory)) {
+        for (const msg of conversationHistory) {
+            history.push({
+                role: msg.role === 'assistant' ? 'model' : 'user',
+                parts: [{ text: msg.content }]
+            });
+        }
+    }
+
+    const chat = model.startChat({ history });
+    const result = await chat.sendMessage(userMessage);
+    const text = result.response.text();
+
+    // Extract specialty tag if present
+    let suggestedSpecialty = null;
+    const match = text.match(/\[SPECIALTY:\s*(.+?)\]/i);
+    if (match) {
+        suggestedSpecialty = match[1].trim();
+    }
+    
+    // Clean reply
+    const cleanReply = text.replace(/\[SPECIALTY:\s*.+?\]/gi, '').trim();
 
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify({ 
+        reply: cleanReply,
+        suggestedSpecialty: suggestedSpecialty 
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
