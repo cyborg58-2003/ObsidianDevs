@@ -1,5 +1,5 @@
-// @ts-nocheck
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { GoogleGenerativeAI } from "npm:@google/genai@0.1.2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,21 +13,35 @@ serve(async (req) => {
 
   try {
     const { message, doctorId } = await req.json()
-
-    // Here you would connect to Claude / OpenAI to maintain conversation context.
-    // For Hackathon purposes, we use a basic heuristic to reply professionally.
     
-    let reply = "Hello! I am the AI Assistant for this clinic. The doctor is currently offline, but I can help answer basic questions or schedule a consultation for you. How can I help today?";
+    // Initialize Gemini API client
+    const apiKey = Deno.env.get("GEMINI_API_KEY");
     
-    const msg = message.toLowerCase();
-    
-    if (msg.includes("book") || msg.includes("appointment") || msg.includes("schedule")) {
-      reply = "I'd be happy to help you book an appointment. You can select an available time slot directly from the calendar above. Is there a specific day you prefer?";
-    } else if (msg.includes("cost") || msg.includes("price") || msg.includes("fee")) {
-      reply = "Consultation fees vary by doctor. You can see the exact fee listed on the doctor's profile card. Would you like me to help you proceed with a booking?";
-    } else if (msg.includes("pain") || msg.includes("hurt") || msg.includes("sick")) {
-      reply = "I'm sorry to hear you're feeling unwell. Since I am an AI, I cannot provide medical diagnoses. I highly recommend booking the earliest available slot so the doctor can evaluate your symptoms properly.";
+    if (!apiKey) {
+        throw new Error("GEMINI_API_KEY is not configured.");
     }
+    
+    const ai = new GoogleGenerativeAI({ apiKey });
+
+    const systemPrompt = `You are a polite, professional, and empathetic AI receptionist for a medical clinic (Doctor ID: ${doctorId}). 
+Your job is to assist patients when the doctor is unavailable. 
+1. Ask the patient how you can help them.
+2. If they have a medical issue, ask them for a brief description of their symptoms.
+3. Help them understand that you are an AI and cannot diagnose them, but you will pass all information to the doctor.
+4. Encourage them to book an appointment using the calendar interface.
+Keep your responses very concise (1-3 sentences maximum) and conversational. Do not use markdown formatting.`;
+
+    // Generate response using Gemini 1.5 Flash for speed
+    const response = await ai.models.generateContent({
+        model: 'gemini-1.5-flash',
+        contents: [
+            { role: 'user', parts: [{ text: systemPrompt }] },
+            { role: 'model', parts: [{ text: "Understood. I will act as the medical receptionist." }] },
+            { role: 'user', parts: [{ text: message }] }
+        ]
+    });
+
+    const reply = response.text;
 
     return new Response(
       JSON.stringify({ reply }),
