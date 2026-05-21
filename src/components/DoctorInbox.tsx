@@ -25,7 +25,7 @@ interface Message {
   created_at: string;
 }
 
-export function DoctorInbox({ doctorId }: { doctorId: string }) {
+export function DoctorInbox({ doctorId, userId }: { doctorId: string; userId?: string }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeConv, setActiveConv] = useState<Conversation | null>(null);
@@ -115,7 +115,7 @@ export function DoctorInbox({ doctorId }: { doctorId: string }) {
     
     const { error } = await (supabase as any).from("messages").insert({
       conversation_id: activeConv.id,
-      sender_id: doctorId,
+      sender_id: userId || doctorId,
       content,
       is_ai_generated: false,
     });
@@ -205,7 +205,7 @@ export function DoctorInbox({ doctorId }: { doctorId: string }) {
                 </div>
               ) : (
                 messages.map((msg) => {
-                  const isMe = msg.sender_id === doctorId;
+                  const isMe = msg.sender_id === doctorId || (!!userId && msg.sender_id === userId);
                   return (
                     <div key={msg.id} className={cn("flex", isMe ? "justify-end" : "justify-start")}>
                       <div

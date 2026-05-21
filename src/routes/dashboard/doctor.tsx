@@ -463,7 +463,7 @@ function DoctorDashboard() {
           {/* Messages Tab */}
           <TabsContent value="messages" className="mt-6 outline-none">
             {doctor?.id ? (
-              <DoctorInbox doctorId={doctor.id} />
+              <DoctorInbox doctorId={doctor.id} userId={user?.id} />
             ) : (
               <Card className="p-8 text-center border-dashed">
                 <p className="text-muted-foreground">Save your profile first to view messages.</p>
